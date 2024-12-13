@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="../Styles/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Game - Player vs AI</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            flex-direction: column;
+        }
+
+        canvas {
+            border: 2px solid white;
+            background-color: black;
+        }
+
+        .score {
+            position: absolute;
+            top: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            display: flex;
+            justify-content: space-between;
+            width: 400px;
+        }
+
+        .winner {
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .play-again {
+            background-color: #444;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .play-again:hover {
+            background-color: #666;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="pong" width="600" height="400"></canvas>
+<div class="score">
+    <span id="playerScore">0</span>
+    <span id="aiScore">0</span>
+</div>
+<div id="winner" class="winner"></div>
+<button id="playAgain" class="play-again">Play Again</button>
+
+<script>
+    const canvas = document.getElementById('pong');
+    const ctx = canvas.getContext('2d');
+    const playAgainButton = document.getElementById('playAgain');
+    const winnerText = document.getElementById('winner');
+
+    // Ball properties
+    const ball = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 8,
+        speed: 3,  // Increased ball speed
+        velocityX: 3,
+        velocityY: 3
+    };
+
+    // Paddle properties
+    const paddleWidth = 10;
+    const paddleHeight = 100;
+    const player = {
+        x: 0,
+        y: canvas.height / 2 - paddleHeight / 2,
+        width: paddleWidth,
+        height: paddleHeight,
+        color: 'white',
+        speed: 4,
+        dy: 0
+    };
+
+    const ai = {
+        x: canvas.width - paddleWidth,
+        y: canvas.height / 2 - paddleHeight / 2,
+        width: paddleWidth,
+        height: paddleHeight,
+        color: 'white',
+        speed: 4,
+        dy: 0
+    };
+
+    let playerScore = 0;
+    let aiScore = 0;
+    let gameEnded = false;
+
+    // Draw the ball
+    function drawBall() {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2, false);
+        ctx.fill();
+    }
+
+    // Draw the paddles
+    function drawPaddle(x, y, width, height) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(x, y, width, height);
+    }
+
+    // Draw the net
+    function drawNet() {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(canvas.width / 2 - 1, 0, 2, canvas.height);
+    }
+
+    // Update the ball position
+    function moveBall() {
+        ball.x += ball.velocityX;
+        ball.y += ball.velocityY;
+
+        // Ball collision with top and bottom
+        if (ball.y - ball.radius <= 0 || ball.y + ball.radius >= canvas.height) {
+            ball.velocityY = -ball.velocityY;
+        }
+
+        // Ball collision with paddles
+        if (ball.x - ball.radius <= player.x + player.width && ball.y >= player.y && ball.y <= player.y + player.height) {
+            ball.velocityX = -ball.velocityX;
+            ball.speed += 0.3; // Increased speed after hitting player paddle
+        }
+
+        if (ball.x + ball.radius >= ai.x && ball.y >= ai.y && ball.y <= ai.y + ai.height) {
+            ball.velocityX = -ball.velocityX;
+            ball.speed += 0.3; // Increased speed after hitting AI paddle
+        }
+
+        // Ball out of bounds (left or right)
+        if (ball.x - ball.radius <= 0) {
+            aiScore++;
+            resetBall();
+        }
+
+        if (ball.x + ball.radius >= canvas.width) {
+            playerScore++;
+            resetBall();
+        }
+    }
+
+    // Reset the ball position
+    function resetBall() {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.velocityX = -ball.velocityX;
+        ball.velocityY = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
+    }
+
+    // Update player position
+    function movePlayer() {
+        player.y += player.dy;
+        if (player.y < 0) player.y = 0;
+        if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+    }
+
+    // AI movement logic
+    function moveAI() {
+        const aiCenter = ai.y + ai.height / 2;
+        const ballCenter = ball.y;
+
+        if (aiCenter < ballCenter - 35) {
+            ai.dy = ai.speed;
+        } else if (aiCenter > ballCenter + 35) {
+            ai.dy = -ai.speed;
+        } else {
+            ai.dy = 0;
+        }
+
+        ai.y += ai.dy;
+        if (ai.y < 0) ai.y = 0;
+        if (ai.y + ai.height > canvas.height) ai.y = canvas.height - ai.height;
+    }
+
+    // Update the score on screen
+    function updateScore() {
+        document.getElementById('playerScore').textContent = playerScore;
+        document.getElementById('aiScore').textContent = aiScore;
+    }
+
+    // Display the winner
+    function displayWinner(winner) {
+        gameEnded = true;
+        const winnerMessage = winner === 'Player' ? 'You win!' : 'AI wins!';
+        winnerText.textContent = winnerMessage;
+        winnerText.style.display = 'block'; // Show winner message
+        playAgainButton.style.display = 'inline-block'; // Show play again button
+    }
+
+    // Game loop
+    function gameLoop() {
+        if (gameEnded) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+        drawNet();
+        drawBall();
+        drawPaddle(player.x, player.y, player.width, player.height);
+        drawPaddle(ai.x, ai.y, ai.width, ai.height);
+        moveBall();
+        movePlayer();
+        moveAI();
+        updateScore();
+
+        // Check if any player reached score 5
+        if (playerScore >= 5) {
+            displayWinner('Player');
+        } else if (aiScore >= 5) {
+            displayWinner('AI');
+        }
+    }
+
+    // Keydown event for player paddle
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowUp') {
+            player.dy = -player.speed;
+        } else if (e.key === 'ArrowDown') {
+            player.dy = player.speed;
+        }
+    });
+
+    // Keyup event to stop player paddle
+    document.addEventListener('keyup', function(e) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            player.dy = 0;
+        }
+    });
+
+    // Play again button functionality
+    playAgainButton.addEventListener('click', function() {
+        playerScore = 0;
+        aiScore = 0;
+        gameEnded = false;
+        ball.speed = 3;
+        resetBall();
+        playAgainButton.style.display = 'none';  // Hide the play again button
+        winnerText.style.display = 'none';  // Hide winner message
+        gameLoop();  // Restart the game loop
+    });
+
+    // Start the game loop
+    setInterval(gameLoop, 1000 / 60); // 60 FPS
+</script>
+
+<a href="../index.html"></a>
+First to 5 wins!
+<div class="navbar">
+<a href="scratch.html">To Scratch Page</a>
+</div>
+
+</body>
+</html>
